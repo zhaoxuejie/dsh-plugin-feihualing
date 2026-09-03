@@ -50,88 +50,50 @@ DeepSeek Harness 飞花令游戏插件：**简易 / 古法严格**双模式，�
 
 ## 安装
 
-> 本插件是一个 **DSH bundle**：`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml` 的 `- insert:` 条目（id `feihualing`）。安装到某个 **profile** 后，`dsh plugin add` 会自动把包链接进该 profile 的 `node_modules`，并把 `dsh-plugin-feihualing` 追加到该 profile 的 `dsh.profile.bundles` 列表。
->
-> 运行时**没有任何第三方依赖**：仅用到 Harness 自带的原生包 `@deepseek-ai/dsh-tools`（可选 peer），profile 通常已内置，无需额外安装。
+> 本插件是 **DSH bundle**，安装到 profile 即自动挂载（id `feihualing`），运行时零第三方依赖。需已装 `dsh` CLI（或桌面版）、Node.js ≥ 20、pnpm ≥ 10；下文 profile 以 `desktop` 为例，替换为你实际的 profile（见 `$DSH_HOME/profiles/`）。
 
-### 环境要求
-
-- 已安装 DeepSeek Harness（`dsh` CLI 或桌面版），可正常以 profile 启动；
-- Node.js ≥ 20、pnpm ≥ 10（`dsh plugin` 底层即向 profile 目录转发 pnpm 命令）。
-
-下文以 profile 名 `desktop` 为例，请替换为您实际使用的 profile（可用 `dsh plugin --help` 查看，或直接看 `$DSH_HOME/profiles/` 下的目录名）。
-
-### 方式一：从 GitHub 直接安装（最省事，无需克隆）
-
-在任意目录执行：
+### 从 GitHub 直接安装（推荐）
 
 ```bash
-dsh plugin --profile desktop add github:<您的 GitHub 用户名>/dsh-plugin-feihualing
+dsh plugin --profile desktop add github:zhaoxuejie/dsh-plugin-feihualing
 ```
 
-首次执行会自动初始化该 profile（引入 `@deepseek-ai/dsh-base` 作为首个 bundle）。**git 安装有以下两点须知：**
+- git 安装拿到的是源码，包的 `prepare` 脚本会在安装时自动执行 `pnpm run build` 生成 `lib/`，无需手动构建；
+- pnpm ≥ 10 默认拒绝执行 git 依赖的 `prepare`，首次会失败：请在该 profile 目录的 `pnpm-workspace.yaml` 加入白名单后重跑上面的命令：
 
-1. **安装时自动构建**：从 git 安装拿到的是**源码**而非构建产物。本包通过 `prepare` 脚本（内部执行 `pnpm run build`，用 tsc 生成 `lib/`）在安装阶段自动构建，无需手动干预。
-2. **pnpm ≥ 10 构建白名单**：出于安全，pnpm ≥ 10 默认拒绝执行 git 依赖的 `prepare` 脚本，首次 `add` 会失败并提示类似 `… has an unrecognized or not allowed build script`。请按提示把包键加入**该 profile 目录**下的 `pnpm-workspace.yaml`：
+```yaml
+allowBuilds:
+  dsh-plugin-feihualing: true
+```
 
-   ```yaml
-   allowBuilds:
-     dsh-plugin-feihualing: true
-   ```
+> ⚠️ 允许构建 = 允许安装时在您机器上执行该包代码，仅对信任的源码开启；更稳妥的是固定 commit：`github:zhaoxuejie/dsh-plugin-feihualing#<sha>`。
 
-   保存后重新执行上面的 `add` 命令即可完成安装。
-
-   ⚠️ **安全提示**：允许构建 = 允许安装时在您的机器上执行该包的代码，请只对您信任的源码开启。更稳妥的做法是用 commit 固定版本，防止上游后续推送悄悄改变安装时执行的代码：
-
-   ```bash
-   dsh plugin --profile desktop add github:<您的 GitHub 用户名>/dsh-plugin-feihualing#<commit-sha>
-   ```
-
-### 方式二：克隆源码后本地安装（适合二次开发）
+### 克隆源码本地安装
 
 ```bash
-git clone https://github.com/<您的 GitHub 用户名>/dsh-plugin-feihualing.git
+git clone https://github.com/zhaoxuejie/dsh-plugin-feihualing.git
 cd dsh-plugin-feihualing
-pnpm install
-pnpm run build              # 生成 lib/（tsc 构建产物，已被 .gitignore 忽略，需本地生成）
-dsh plugin --profile desktop add .   # 在仓库根目录内执行
+pnpm install && pnpm run build
+dsh plugin --profile desktop add .   # 在仓库根目录执行
 ```
 
-在仓库目录内执行 `dsh plugin add .` 时，pnpm 会以 `link:` 形式把当前目录链接进 profile 的 `node_modules` 并追加 bundle 层，改动源码后重新 `pnpm run build` 即可热生效。
-
-### 方式三：npm 包 / tarball（预构建分发，无需构建白名单）
+### 或经 npm / tarball 安装（预构建，免白名单）
 
 ```bash
-# 若已发布到 npm registry：
-dsh plugin --profile desktop add dsh-plugin-feihualing
-
-# 或使用作者分发的 tarball（pnpm pack 产物）：
-dsh plugin --profile desktop add ./dsh-plugin-feihualing-1.0.0.tgz
+dsh plugin --profile desktop add dsh-plugin-feihualing               # 已发布 npm 时
+dsh plugin --profile desktop add ./dsh-plugin-feihualing-1.0.0.tgz   # 或 pnpm pack 产物
 ```
 
-这两种形式分发的是**已构建产物**，安装时不需要任何构建许可，是最省心的分发渠道。
-
-### 验证安装
+### 验证与卸载
 
 ```bash
-# 查看最终组合配置：应能看到 "# == dsh-plugin-feihualing" 一层的 insert 行（id: feihualing）
-dsh --profile desktop --dump-config
+dsh --profile desktop --dump-config   # 应能看到 "# == dsh-plugin-feihualing" 层
+dsh --profile desktop                 # 启动后对模型说「开始飞花令」即可开局
 
-# 启动 Harness：
-dsh --profile desktop
+dsh plugin --profile desktop remove dsh-plugin-feihualing   # 卸载并清理快照
 ```
 
-启动后在新会话中直接对模型说「开始飞花令」即可开局；`feihualing_start` / `feihualing_status` / `feihualing_stop` 三个工具会随插件自动注入。若无响应，请确认 profile 中该行 `enable` 配置为 `true`（默认 `true`），并检查 `dsh --profile desktop --dump-config` 输出里确实存在该行。
-
-### 卸载
-
-```bash
-dsh plugin --profile desktop remove dsh-plugin-feihualing
-```
-
-该命令会同时移除依赖与挂载层；插件卸载时也会清空全部会话内存状态并删除快照目录（见「文件读写安全（白名单）」）。
-
-安装后的可选配置（提示次数、自动暂停等）请见上方「配置」章节。
+可选配置（提示次数、自动暂停等）见上方「配置」章节。
 
 ## 文件读写安全（白名单）
 
