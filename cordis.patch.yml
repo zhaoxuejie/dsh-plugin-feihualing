@@ -1,0 +1,10 @@
+# dsh-plugin-feihualing bundle patch：向 profile 插入一行 Loader 条目。
+#
+# 说明：DeepSeek Harness 生态里，插件包通过 package.json 的
+# `dsh.bundle.patch` 指向本文件；安装器将 `- insert:` 块合并进
+# profile 的 cordis.yml。此处保持“纯 insert”（id + name），
+# 配置项交由用户按需在 profile 的 cordis.yml 条目 config 中覆写，
+# 缺省值由插件代码与 cordis.yml 的 config schema 提供。
+- insert:
+    - id: feihualing
+      name: dsh-plugin-feihualing

@@ -1,0 +1,71 @@
+# ============================================================
+# dsh-plugin-feihualing 插件元配置
+# ============================================================
+name: dsh-plugin-feihualing
+version: 1.0.0
+description: >-
+  飞花令游戏插件（简易 / 古法严格双模式）。
+  支持关键词指令（开始飞花令、结束飞花令、换字、提示、认输、暂停、继续飞花令）、
+  3 个模型工具（feihualing_start / feihualing_status / feihualing_stop）、
+  按会话隔离的游戏状态（令字、得分、已用诗句、剩余提示次数），
+  以及检测到 shell / 文件写入类工具调用时自动暂停并保存现场。
+author: feihualing
+
+# ------------------------------------------------------------
+# Loader 条目（安装器写入 profile cordis.yml 时使用的形态）
+# ------------------------------------------------------------
+entry:
+  id: feihualing
+  name: dsh-plugin-feihualing
+  inject: [tools]
+
+# ------------------------------------------------------------
+# 配置 Schema（运行时在插件代码内同样执行严格校验）
+# ------------------------------------------------------------
+config:
+  enable:
+    type: boolean
+    default: true
+    description: 插件总开关；false 时完全不注册任何逻辑
+  maxHintCount:
+    type: integer
+    default: 3
+    min: 0
+    max: 10
+    description: 每局最大提示次数（剩余提示次数初始值）
+  autoPause:
+    type: boolean
+    default: true
+    description: >-
+      自动暂停开关；为 true 时，检测到 shell / 文件写入类工具调用
+      （bash、pwsh、write、edit 等）自动暂停游戏并保存现场
+
+# ------------------------------------------------------------
+# UI 声明：按需求不做侧边面板，仅工具与事件逻辑
+# ------------------------------------------------------------
+ui:
+  sidePanel: false
+  note: 游戏状态通过 feihualing_status 工具返回给模型，由模型自然语言播报
+
+# ------------------------------------------------------------
+# 能力与安全声明
+# ------------------------------------------------------------
+capabilities:
+  provides:
+    - tool: feihualing_start
+    - tool: feihualing_status
+    - tool: feihualing_stop
+  listens:
+    - user:message      # 实际映射到 Harness 会话事件 user/message
+    - turn:before       # 实际映射到 Harness 会话事件 turn/start
+    - turn:after        # 实际映射到 Harness 会话事件 turn/end
+    - tool:before       # 实际映射到 Harness 会话事件 tool/call
+    - plugin:unload     # 实际映射到 Cordis fiber dispose（ctx.effect 清理）
+
+permissions:
+  filesystem:
+    whitelist:
+      - $DSH_HOME/storages/dsh-plugin-feihualing/**
+    note: 仅允许在快照白名单目录内读写；路径穿越、非法文件名一律拒绝
+  network: []            # 不使用网络
+  timers: none           # 不使用定时器

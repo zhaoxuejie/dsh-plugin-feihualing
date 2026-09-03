@@ -1,0 +1,19 @@
+# ---------- 依赖 ----------
+node_modules/
+# pnpm 本地存储缓存
+.pnpm-store/
+
+# ---------- 构建产物 ----------
+# TypeScript 编译输出（src -> lib，可执行 npm run build 重新生成）
+lib/
+*.tsbuildinfo
+
+# ---------- 日志 ----------
+*.log
+debug.log
+
+# ---------- 系统与编辑器 ----------
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
