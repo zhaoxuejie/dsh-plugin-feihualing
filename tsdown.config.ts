@@ -20,9 +20,12 @@ const lib = {
 // Client 半边：浏览器 bundle，交给 dsh 的 client-modules 分发。
 // 产物必须是 __ModuleLoader__.load 握手格式（banner/footer），并以 CJS 输出
 // （工厂通过注入的 require 从浏览器模块表解析 externals）。
-// externals 只允许浏览器平台模块表里有的包；react 是唯一运行时外部依赖，
+// externals 只允许浏览器平台模块表里有的包。宿主官方 client 包把 react 与
+// react/jsx-runtime 都作为 external（require("react/jsx-runtime")），因此 JSX
+// 自动运行时也必须 external —— 否则 rolldown 会把本地 react 副本的
+// jsx-runtime 内联进 bundle，产生与宿主 reconciler 跨版本的 element（React #31）。
 // 其余依赖一律内联（noExternal），防止 require 到模块表回答不了的 specifier。
-const CLIENT_EXTERNALS = ['react']
+const CLIENT_EXTERNALS = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime']
 
 /** Client 半边：游戏面板浏览器 bundle，输出 lib/client.js。 */
 const client = {
