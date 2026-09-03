@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-feihualing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "DeepSeek Harness 飞花令游戏插件：简易/古法严格双模式，按会话独立维护令字、得分、已用诗句与剩余提示次数；提供 feihualing_start / feihualing_status / feihualing_stop 三个工具与关键词指令，检测到 shell/文件写入类工具调用时自动暂停并保存现场。",
   "type": "module",
   "main": "lib/index.js",

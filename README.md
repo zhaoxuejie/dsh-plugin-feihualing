@@ -1,8 +1,22 @@
 # dsh-plugin-feihualing —— 飞花令游戏插件
 
-DeepSeek Harness 飞花令游戏插件：**简易 / 古法严格**双模式，游戏状态（令字、得分、已使用诗句、剩余提示次数）由插件**按会话独立维护**；插件自身不向主聊天输出流写入任何内容，所有播报由模型根据工具返回值完成。
+DeepSeek Harness 飞花令游戏插件，两种玩法：
+
+- **🎴 浏览器即时对战（v1.1+）**：会话标题行点 🎴 打开浮层面板——内置 AI 对手出题、限时对诗、连击计分、三档难度、局制结算与本地战绩。判定在本机完成（与对话模式共用同一套规则），**不走模型回合**——AI 在后台跑任务时，随手就能开一局休闲。
+- **💬 对话模式**：简易 / 古法严格双模式，游戏状态（令字、得分、已用诗句、剩余提示次数）由插件**按会话独立维护**；插件自身不向主聊天输出流写入任何内容，所有播报由模型根据工具返回值完成。
 
 ## 玩法
+
+### 🎴 即时对战（浏览器面板）
+
+在任意会话标题操作行点 **🎴** 打开「飞花令 · 即时对战」浮层：
+
+- 对手先手出题（含令字的诗句），你在限时内对出**含令字的新句**（轻松 30s / 标准 20s / 困难 15s）；
+- 连续答对触发**连击加分**；双方（你与对手）用过的诗句都不能再用（双边去重）；
+- **连对 7 题通关**，超时 3 次惜败；简易 / 古法模式任选，古法按「令字位置 1→7 循环」推进；
+- 「💡 提示」给出参考句（参考句直接跟对只得 5 分、断连击）；「再来一局」自动换新令字；
+- 战绩（胜 / 负 / 连胜 / 最佳）存于本机；关闭面板不丢对局（隐藏视同暂停）；
+- 面板判定与对话模式共用 `src/shared` 规则，**不占用模型上下文**。
 
 ### 关键词指令（直接对插件说）
 
@@ -81,19 +95,33 @@ dsh plugin --profile desktop add .   # 在仓库根目录执行
 
 ```bash
 dsh plugin --profile desktop add dsh-plugin-feihualing               # 已发布 npm 时
-dsh plugin --profile desktop add ./dsh-plugin-feihualing-1.0.0.tgz   # 或 pnpm pack 产物
+dsh plugin --profile desktop add ./dsh-plugin-feihualing-1.1.0.tgz   # 或 pnpm pack 产物
 ```
+
+> 💡 UI 说明：`dsh.client`（浏览器半边）随包分发，Web GUI 安装后**重启一次**即出现 🎴 面板按钮（client bundle 按内容 rev 刷新）。
 
 ### 验证与卸载
 
 ```bash
 dsh --profile desktop --dump-config   # 应能看到 "# == dsh-plugin-feihualing" 层
-dsh --profile desktop                 # 启动后对模型说「开始飞花令」即可开局
+dsh --profile desktop                 # 启动后：对话说「开始飞花令」可对诗；
+                                      #   会话标题行会出现 🎴 按钮，打开即时对战面板
 
 dsh plugin --profile desktop remove dsh-plugin-feihualing   # 卸载并清理快照
 ```
 
 可选配置（提示次数、自动暂停等）见上方「配置」章节。
+
+## 开发
+
+```bash
+pnpm install
+pnpm typecheck   # 严格类型检查（tsc --noEmit）
+pnpm test        # 引擎逻辑冒烟测试（对局引擎 23 项断言）
+pnpm run build   # tsdown：lib/index.js（Host）+ lib/client.js（浏览器 UI）
+```
+
+结构：`src/index.ts` Host 半边（状态机 / 三个工具 / 事件 / 快照白名单）；`src/client/` 浏览器 UI（即时对战面板、引擎、战绩）；`src/shared/` 双半共用（判定规则、诗句库，保证对话与面板判定一致）。Host 无任何第三方运行时依赖；Client 仅依赖 DSH 自带的 `react`。
 
 ## 文件读写安全（白名单）
 
@@ -103,6 +131,6 @@ dsh plugin --profile desktop remove dsh-plugin-feihualing   # 卸载并清理快
 
 ## 其它说明
 
-- 不使用定时器、无后台任务；会话之间状态完全隔离。
+- Host 半边不使用定时器、无后台任务；会话之间状态完全隔离。
 - 事件映射（需求名 → 本 Harness 实际事件）：`user:message → user/message`、`turn:before → turn/start`、`turn:after → turn/end`、`tool:before → tool/call`、`plugin:unload → Cordis fiber dispose（ctx.effect 清理 + 字面量事件兜底）`。
-- 不做侧边 UI 面板（按需求仅工具与事件逻辑）；游戏状态经 `feihualing_status` 返回给模型播报。
+- 浏览器 UI：会话头 🎴 按钮 + 浮层（`dsh.client` platform=web，仅依赖 DSH 运行时自带 react）；面板对局为独立即时战，与本机会话的 localStorage 战绩。对话模式状态经 `feihualing_status` 返回给模型播报。
