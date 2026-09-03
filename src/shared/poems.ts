@@ -157,7 +157,6 @@ export const POEM_BANK: Readonly<Record<string, readonly string[]>> = Object.fre
     '人闲桂花落',
     '举杯邀明月，对影成三人',
     '路上行人欲断魂',
-    '独在异乡为异客，每逢佳节倍思亲',
     '人面不知何处去',
     '但愿人长久',
     '前不见古人，后不见来者',
@@ -176,7 +175,6 @@ export const POEM_BANK: Readonly<Record<string, readonly string[]>> = Object.fre
     '酒入愁肠，化作相思泪',
     '今朝有酒今朝醉',
     '白日放歌须纵酒',
-    '人生得意须尽欢，莫使金樽空对月',
     '明月几时有，把酒问青天',
   ]),
   夜: Object.freeze([

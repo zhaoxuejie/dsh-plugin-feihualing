@@ -1,5 +1,7 @@
 // 引擎逻辑冒烟验证（Node 24 type-stripping 直接运行）
 import * as engine from './src/client/game/engine.ts'
+import { judgePoemAttempt, normalizeLine, MIN_LINE_CHARS, MAX_LINE_CHARS, MAX_ANCIENT_POSITION } from './src/shared/rules.ts'
+import { POEM_BANK, LINGZI_POOL, EASY_LINGZI, HARD_LINGZI } from './src/shared/poems.ts'
 
 let failed = 0
 function check(name, cond, extra = '') {
@@ -80,6 +82,36 @@ const aGen = (p) => {
 }
 const aOk = engine.submitPlayerLine(a0, aGen(pos))
 check('古法位置正确通过', aOk.ok === true, aOk.state.lastVerdict)
+
+// 11. 共享规则边界（Host/Client 同一判定函数）
+const judge = (raw, lingzi, mode = 'simple', pos = 1, used = []) =>
+  judgePoemAttempt({ rawText: raw, lingzi, mode, requiredPosition: pos, usedNormalized: used })
+check('规则：不含令字→notPoem', judge('白日依山尽', '月').kind === 'notPoem')
+check('规则：<4 字→length', judge('月光', '月').kind === 'length')
+check('规则：>48 字→length', judge('月'.repeat(49), '月').kind === 'length')
+check('规则：4 字恰好通过', judge('月色当空' + '明', '月').kind === 'valid')
+check('规则：重复拒绝', judge('床前明月光', '月', 'simple', 1, [normalizeLine('床前明月光')]).kind === 'duplicate')
+check('规则：古法位置 7 位正确', judge('天地玄黄宇宙月荒', '月', 'ancient', 7).kind === 'valid')
+check('规则：古法位置错位拒绝', judge('月地玄黄宇宙洪荒', '月', 'ancient', 7).kind === 'badPosition')
+check('规则：ancient 位置 7 循环上限', MAX_ANCIENT_POSITION === 7)
+
+// 12. 诗库数据质量自检：每令字每句必含令字、长度合规、无整句重复
+let bankIssues = 0
+for (const lingzi of LINGZI_POOL) {
+  const lines = POEM_BANK[lingzi] ?? []
+  check(`诗库：令字「${lingzi}」有句可出`, lines.length >= 8, `${lines.length} 句`)
+  const seen = new Set()
+  for (const line of lines) {
+    const norm = normalizeLine(line)
+    if (!norm.includes(lingzi)) { bankIssues += 1; console.error(`  ✘ 「${line}」不含令字「${lingzi}」`) }
+    if (norm.length < MIN_LINE_CHARS || norm.length > MAX_LINE_CHARS) { bankIssues += 1; console.error(`  ✘ 「${line}」长度 ${norm.length} 超界`) }
+    if (seen.has(norm)) { bankIssues += 1; console.error(`  ✘ 「${line}」在本令字内重复`) }
+    seen.add(norm)
+  }
+}
+check('诗库：全部语句质量合格', bankIssues === 0, `${bankIssues} issues`)
+check('诗库：令字池覆盖', LINGZI_POOL.length >= 20, `${LINGZI_POOL.length} keys`)
+check('难度池：常见字≥15 且冷门字≥4', EASY_LINGZI.length >= 15 && HARD_LINGZI.length >= 4, `easy=${EASY_LINGZI.length} hard=${HARD_LINGZI.length}`)
 
 console.log(failed === 0 ? '\nALL CHECKS PASSED' : `\n${failed} CHECK(S) FAILED`)
 process.exit(failed === 0 ? 0 : 1)
