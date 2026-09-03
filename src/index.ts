@@ -31,9 +31,12 @@
  *   [A-Za-z0-9._-]{1,64}、路径拼接后必须仍位于白名单根目录内（防目录穿越）、
  *   快照文件大小上限 64KB、内容逐字段校验。
  *
- * 约束
- *   不使用定时器、无后台任务、不引入任何第三方 npm 运行时依赖
- *   （唯一运行时 import 是 Harness 原生包 @deepseek-ai/dsh-tools）。
+ * 约束（Host 半边）
+ *   Host 不使用定时器、无后台任务、不引入任何第三方 npm 运行时依赖
+ *   （唯一运行时 import 是 Harness 原生包 @deepseek-ai/dsh-tools）；
+ *   诗句库与判定规则抽到 src/shared（Host 与浏览器 Client 共用纯模块，
+ *   保证“对话判定”与“面板即时判定”规则完全一致）。
+ *   浏览器 UI 半边见 src/client：内置对手即时对战，不走模型回合。
  */
 
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -41,6 +44,11 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {
+  judgePoemAttempt, MAX_ANCIENT_POSITION, MAX_LINE_CHARS, MIN_LINE_CHARS, normalizeLine,
+} from './shared/rules.ts'
+import type { GameMode } from './shared/rules.ts'
+import { LINGZI_POOL, POEM_BANK } from './shared/poems.ts'
 
 /** 插件在 Loader 中的显示名。 */
 export const name = 'feihualing'
@@ -52,8 +60,8 @@ export const inject = ['tools']
 // TS 接口定义（需求 9：输出 TS 类型 interface 定义）
 // ============================================================
 
-/** 游戏模式：simple 简易 / ancient 古法严格。 */
-export type GameMode = 'simple' | 'ancient'
+/** 游戏模式：simple 简易 / ancient 古法严格（类型定义见 shared/rules.ts）。 */
+export type { GameMode } from './shared/rules.ts'
 
 /** 游戏阶段：idle 无对局 / running 进行中 / paused 已暂停 / finished 已结束。 */
 export type GamePhase = 'idle' | 'running' | 'paused' | 'finished'
@@ -195,39 +203,7 @@ const SNAPSHOT_VERSION = 1
 /** 快照文件大小上限（字节），防止恶意/损坏文件拖垮读取。 */
 const MAX_SNAPSHOT_BYTES = 64 * 1024
 
-/** 诗句尝试的最小/最大长度（规范化后字符数）。 */
-const MIN_LINE_CHARS = 4
-const MAX_LINE_CHARS = 48
-
-/** 古法令字位置循环上限（第 1 字 → 第 7 字 → 第 1 字）。 */
-const MAX_ANCIENT_POSITION = 7
-
-/**
- * 提示诗句库：令字 → 常见古诗词名句（仅用于“提示”功能，不参与判定；
- * 判定只查“含令字 + 未重复 + 古法位置”，因此插件不依赖任何古诗数据库）。
- * 全部为公有领域经典诗句。
- */
-const POEM_BANK: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  花: ['花间一壶酒', '感时花溅泪', '人面桃花相映红', '霜叶红于二月花', '花落知多少', '春城无处不飞花'],
-  月: ['床前明月光', '举头望明月', '海上生明月', '月落乌啼霜满天', '月是故乡明', '明月几时有'],
-  风: ['夜来风雨声', '春风又绿江南岸', '风吹草低见牛羊', '二月春风似剪刀', '春风不度玉门关', '长风破浪会有时'],
-  雪: ['窗含西岭千秋雪', '独钓寒江雪', '柴门闻犬吠，风雪夜归人', '北风吹雁雪纷纷', '雪上空留马行处', '北风卷地白草折，胡天八月即飞雪'],
-  山: ['白日依山尽', '山重水复疑无路', '轻舟已过万重山', '空山不见人', '千山鸟飞绝', '会当凌绝顶，一览众山小'],
-  水: ['抽刀断水水更流', '桃花潭水深千尺', '一江春水向东流', '山重水复疑无路', '行到水穷处'],
-  云: ['黄河远上白云间', '只在此山中，云深不知处', '白云生处有人家', '行到水穷处，坐看云起时', '众鸟高飞尽，孤云独去闲'],
-  雨: ['清明时节雨纷纷', '好雨知时节', '天街小雨润如酥', '巴山夜雨涨秋池', '山色空蒙雨亦奇'],
-  春: ['春眠不觉晓', '春来江水绿如蓝', '春城无处不飞花', '春蚕到死丝方尽', '野火烧不尽，春风吹又生', '春风又绿江南岸'],
-  秋: ['空山新雨后，天气晚来秋', '湖光秋月两相和', '自古逢秋悲寂寥', '春种一粒粟，秋收万颗子'],
-  人: ['人生得意须尽欢', '人生自古谁无死', '人闲桂花落', '举杯邀明月，对影成三人', '路上行人欲断魂'],
-  酒: ['花间一壶酒', '葡萄美酒夜光杯', '借问酒家何处有', '劝君更尽一杯酒', '对酒当歌'],
-  夜: ['夜来风雨声', '忽如一夜春风来', '巴山夜雨涨秋池', '葡萄美酒夜光杯'],
-  江: ['孤帆远影碧空尽，唯见长江天际流', '春来江水绿如蓝', '春风又绿江南岸', '一江春水向东流', '天门中断楚江开'],
-  日: ['白日依山尽', '日照香炉生紫烟', '千里江陵一日还', '映日荷花别样红', '锄禾日当午'],
-  星: ['星垂平野阔', '迢迢牵牛星', '危楼高百尺，手可摘星辰', '微微风簇浪，散作满河星'],
-})
-
-/** 开局/换字时随机抽取的令字池（即提示诗句库的键）。 */
-const LINGZI_POOL: readonly string[] = Object.keys(POEM_BANK)
+/** 诗句库与规则常量定义见 src/shared（Host/Client 共用，保证规则一致）。 */
 
 /**
  * 关键词指令表（按顺序匹配，命中即停止）。
@@ -257,16 +233,8 @@ const DANGEROUS_TOOL_NAMES: ReadonlySet<string> = new Set([
 ])
 
 // ============================================================
-// 模块级纯函数（无状态、无副作用，仅做文本/路径处理）
+// 模块级纯函数（无状态、无副作用；文本规则函数见 shared/rules.ts）
 // ============================================================
-
-/**
- * 规范化一行文本：去除空白与常见中英文标点，仅保留汉字/字母/数字。
- * 用于关键词匹配与诗句去重比较。
- */
-function normalizeLine(raw: string): string {
-  return raw.replace(/[\s，。！？、；：""''（）《》〈〉【】\[\]·,.!?;:'"()\-—…]+/gu, '')
-}
 
 /**
  * 从 user/message 事件的 content 中提取纯文本。
@@ -296,11 +264,6 @@ function normalizeToolName(raw: unknown): string {
 /** 统一错误信息提取（catch 变量在 strict 模式下为 unknown）。 */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
-}
-
-/** 去掉文本首尾空白（用于展示时压缩用户输入的换行/空格）。 */
-function trimDisplay(raw: string): string {
-  return raw.trim().replace(/\s+/gu, ' ').slice(0, MAX_LINE_CHARS)
 }
 
 // ============================================================
@@ -476,52 +439,49 @@ export function apply(ctx: Context, rawConfig?: Partial<FeihualingConfig>): void
   }
 
   /**
-   * 诗句尝试判定（核心规则）。
-   * 尝试门槛：规范化后必须包含令字，否则视为普通聊天、不判定；
-   * 判定顺序：长度 → 去重 → 古法位置；全部通过则得分 +1。
+   * 诗句尝试判定（Host 入口）。
+   * 规则实现在 shared/rules.ts 的 judgePoemAttempt（Host 与浏览器 Client 共用，
+   * 保证“对话判定”与“面板即时判定”规则一致）；这里把判定结果落回状态机
+   * （得分、去重登记、古法位置推进）并生成播报文案。
    */
   function attemptPoem(state: GameState, rawText: string): void {
-    const line = normalizeLine(rawText)
+    const result = judgePoemAttempt({
+      rawText,
+      lingzi: state.lingzi,
+      mode: state.mode,
+      requiredPosition: state.requiredPosition,
+      usedNormalized: state.usedNormalized,
+    })
     // 不含令字的消息不视为诗句尝试（普通聊天直接忽略）
-    if (!line.includes(state.lingzi)) return
-
-    if (line.length < MIN_LINE_CHARS || line.length > MAX_LINE_CHARS) {
-      state.attempts += 1
-      state.lastEvent = `「${trimDisplay(rawText)}」长度不符（需 ${MIN_LINE_CHARS}-${MAX_LINE_CHARS} 字），本次无效`
-      state.updatedAt = Date.now()
-      return
-    }
-    if (state.usedNormalized.includes(line)) {
-      state.attempts += 1
-      state.lastEvent = `「${trimDisplay(rawText)}」已使用过，本次无效`
-      state.updatedAt = Date.now()
-      return
-    }
-    // 古法严格模式：令字必须位于本轮指定位置（第 1 字到第 7 字循环）
-    if (state.mode === 'ancient') {
-      const pos = state.requiredPosition
-      if (line.length < pos) {
-        state.attempts += 1
-        state.lastEvent = `「${trimDisplay(rawText)}」不足 ${pos} 字：古法要求令字「${state.lingzi}」位于第 ${pos} 字`
-        state.updatedAt = Date.now()
-        return
-      }
-      if (line[pos - 1] !== state.lingzi) {
-        state.attempts += 1
-        state.lastEvent = `位置不符：「${trimDisplay(rawText)}」第 ${pos} 字应为令字「${state.lingzi}」`
-        state.updatedAt = Date.now()
-        return
-      }
-    }
-    // 判定通过：得分 +1，诗句入已使用集合，古法推进要求位置
+    if (result.kind === 'notPoem') return
     state.attempts += 1
-    state.score += 1
-    state.usedPoems.push(trimDisplay(rawText))
-    state.usedNormalized.push(line)
-    if (state.mode === 'ancient') {
-      state.requiredPosition = (state.requiredPosition % MAX_ANCIENT_POSITION) + 1
+    const t = result.display
+    switch (result.kind) {
+      case 'length':
+        state.lastEvent = `「${t}」长度不符（需 ${MIN_LINE_CHARS}-${MAX_LINE_CHARS} 字），本次无效`
+        break
+      case 'duplicate':
+        state.lastEvent = `「${t}」已使用过，本次无效`
+        break
+      case 'badPosition': {
+        const pos = result.requiredPosition ?? state.requiredPosition
+        state.lastEvent = result.badPosReason === 'tooShort'
+          ? `「${t}」不足 ${pos} 字：古法要求令字「${state.lingzi}」位于第 ${pos} 字`
+          : `位置不符：「${t}」第 ${pos} 字应为令字「${state.lingzi}」`
+        break
+      }
+      case 'valid': {
+        // 判定通过：得分 +1，诗句入已使用集合，古法推进要求位置
+        state.score += 1
+        state.usedPoems.push(t)
+        state.usedNormalized.push(result.normalized)
+        if (state.mode === 'ancient') {
+          state.requiredPosition = (state.requiredPosition % MAX_ANCIENT_POSITION) + 1
+        }
+        state.lastEvent = `判定有效！「${t}」得分 +1（当前 ${state.score} 分）`
+        break
+      }
     }
-    state.lastEvent = `判定有效！「${trimDisplay(rawText)}」得分 +1（当前 ${state.score} 分）`
     state.updatedAt = Date.now()
   }
 

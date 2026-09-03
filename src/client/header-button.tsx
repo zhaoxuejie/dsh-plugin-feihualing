@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { HEADER_ORDER, NAMESPACE } from './constants.ts'
 import type { LocalContext } from './types.ts'
 import { GamePanel } from './panel.tsx'
+import { useGamePanel } from './game/useGame.ts'
 
 /** 在会话头操作行注册游戏开关按钮。 */
 export function registerHeaderButton(ctx: LocalContext): void {
@@ -24,7 +25,7 @@ export function registerHeaderButton(ctx: LocalContext): void {
   ))
 }
 
-/** 会话头游戏开关按钮（点击开合浮层面板）。 */
+/** 会话头游戏开关按钮：对局状态常驻本组件（关面板不丢局），隐藏期间倒计时暂停。 */
 function HeaderButton(props: { sessionId?: string }): React.ReactElement {
   const [open, setOpen] = React.useState(false)
   const [host] = React.useState<HTMLDivElement | null>(() => {
@@ -34,6 +35,8 @@ function HeaderButton(props: { sessionId?: string }): React.ReactElement {
     document.body.appendChild(el)
     return el
   })
+  // 对局状态提升到按钮层：面板开合不影响对局，隐藏 = 暂停计时
+  const api = useGamePanel(open)
 
   // 组件卸载（如会话视图关闭）时收起面板并移除 portal 宿主
   React.useEffect(() => {
@@ -57,14 +60,14 @@ function HeaderButton(props: { sessionId?: string }): React.ReactElement {
         className: 'fhl-toggle',
         'data-active': open ? 'true' : 'false',
         onClick: toggle,
-        title: open ? '收起飞花令' : '飞花令小游戏',
+        title: open ? '收起飞花令（对局保留）' : '飞花令小游戏',
         'aria-label': '飞花令小游戏',
       },
       '🎴',
     ),
     host !== null && open
       ? createPortal(
-          React.createElement(GamePanel, { sessionId, onClose: () => setOpen(false) }),
+          React.createElement(GamePanel, { sessionId, onClose: () => setOpen(false), api }),
           host,
         )
       : null,

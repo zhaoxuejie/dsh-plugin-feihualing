@@ -96,6 +96,121 @@ body[data-ds-dark-theme] .fhl-root {
 .fhl-panel-close:hover { background: var(--fhl-bad-soft); color: var(--fhl-bad); }
 .fhl-muted { color: var(--fhl-fg-muted); }
 .fhl-tag { font-size: 11px; color: var(--fhl-fg-muted); border: 1px solid var(--fhl-border); padding: 1px 6px; border-radius: 999px; }
+
+/* ---- 对战 UI ---- */
+.fhl-row { display: flex; align-items: center; gap: 8px; }
+.fhl-seg-label { font-size: 12px; color: var(--fhl-fg-muted); flex: none; width: 34px; }
+.fhl-seg { display: flex; gap: 4px; flex: 1; }
+.fhl-seg-item {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 12px;
+  border: 1px solid var(--fhl-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fhl-fg-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fhl-seg-item:hover { border-color: var(--fhl-accent); color: var(--fhl-fg); }
+.fhl-seg-item.is-active { background: var(--fhl-accent-soft); border-color: var(--fhl-accent); color: var(--fhl-accent); font-weight: 600; }
+
+.fhl-stage { display: flex; align-items: center; gap: 8px; }
+.fhl-stage-round { font-size: 12px; color: var(--fhl-fg-muted); }
+.fhl-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fhl-fg);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fhl-bg-elev);
+}
+.fhl-timer.is-low { color: var(--fhl-bad); background: var(--fhl-bad-soft); animation: fhl-blink 1s ease-in-out infinite; }
+@keyframes fhl-blink { 50% { opacity: 0.45; } }
+.fhl-stage-tag { margin-left: auto; font-size: 11px; color: var(--fhl-fg-muted); }
+
+.fhl-lingzi {
+  text-align: center;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  color: var(--fhl-accent);
+}
+
+.fhl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--fhl-bg-elev);
+  border: 1px solid var(--fhl-border);
+}
+.fhl-card-role { font-size: 11px; color: var(--fhl-fg-muted); }
+.fhl-card-line { font-size: 15px; line-height: 1.5; }
+
+.fhl-verdict { font-size: 12px; color: var(--fhl-fg-muted); min-height: 16px; }
+
+.fhl-input-row { display: flex; gap: 6px; }
+.fhl-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 9px;
+  border: 1px solid var(--fhl-border);
+  background: var(--fhl-bg);
+  color: var(--fhl-fg);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.fhl-input:focus { border-color: var(--fhl-accent); }
+.fhl-input:disabled { opacity: 0.5; }
+
+.fhl-actions { display: flex; gap: 6px; }
+.fhl-btn {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--fhl-border);
+  border-radius: 9px;
+  background: var(--fhl-bg-elev);
+  color: var(--fhl-fg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fhl-btn:hover:not(:disabled) { border-color: var(--fhl-accent); }
+.fhl-btn:disabled { opacity: 0.45; cursor: default; }
+.fhl-btn-primary { background: var(--fhl-accent-soft); border-color: var(--fhl-accent); color: var(--fhl-accent); font-weight: 600; }
+.fhl-btn-danger { color: var(--fhl-bad); }
+.fhl-btn-danger:hover:not(:disabled) { border-color: var(--fhl-bad); background: var(--fhl-bad-soft); }
+
+.fhl-stats {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  padding-top: 2px;
+  border-top: 1px dashed var(--fhl-border);
+}
+.fhl-stat { font-size: 11px; color: var(--fhl-fg-muted); display: inline-flex; gap: 3px; align-items: baseline; }
+.fhl-stat b { color: var(--fhl-fg); font-size: 13px; }
+.fhl-stat.is-warn b { color: var(--fhl-bad); }
+
+.fhl-result { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 4px; }
+.fhl-result-icon { font-size: 40px; }
+.fhl-result-title { font-size: 18px; font-weight: 800; }
+.fhl-result.is-won .fhl-result-title { color: var(--fhl-ok); }
+.fhl-result.is-lost .fhl-result-title { color: var(--fhl-bad); }
+
+.fhl-record {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--fhl-fg-muted);
+}
 `
 
 /** 注入样式表；返回 disposer（卸载时移除 style 节点）。 */

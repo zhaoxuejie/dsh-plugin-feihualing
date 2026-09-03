@@ -36,7 +36,8 @@
   "scripts": {
     "prepare": "pnpm run build",
     "build": "tsdown",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types verify-engine.mjs"
   },
   "keywords": [
     "deepseek",
