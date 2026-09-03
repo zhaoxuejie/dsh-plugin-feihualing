@@ -56,16 +56,22 @@ export function useGamePanel(active: boolean): GamePanelApi {
     ? ''
     : `${match.phase}:${match.roundIndex}:${match.challenge}`
 
-  // 每一“题”（phase/题号/对手句变化）重置倒计时并启动秒针
+  // 每一“题”（phase/题号/对手句变化）重置倒计时为满额限时
+  React.useEffect(() => {
+    if (match === null || match.phase !== 'playing') return
+    setSecondsLeft(engine.TIME_LIMIT[match.difficulty])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundKey])
+
+  // 秒针：仅面板激活且对局进行中时递减；隐藏（active=false）即暂停并保留剩余时间
   React.useEffect(() => {
     if (!active || match === null || match.phase !== 'playing') return
-    setSecondsLeft(engine.TIME_LIMIT[match.difficulty])
     const timer = setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1))
     }, 1000)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundKey, active])
+  }, [active, roundKey])
 
   // 倒计时归零：本题超时
   React.useEffect(() => {
